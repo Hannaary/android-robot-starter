@@ -4,11 +4,7 @@ import org.springframework.stereotype.Service;
 import ru.kelf54.starter.exception.QueueFullException;
 import ru.kelf54.starter.metrics.MetricsPublisher;
 
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 @Service
 public class CommandService {
@@ -27,18 +23,26 @@ public class CommandService {
 
     public void executeCommand(Command command) {
         if (command.priority() == Command.Priority.CRITICAL) {
+            // Синхронная обработка критических команд
             processCommand(command);
         } else {
-            if (commandQueue.size() >= QUEUE_CAPACITY) {
-                throw new QueueFullException("Command queue overflow");
+            // Асинхронная обработка обычных команд с обработкой переполнения очереди
+            try {
+                executor.execute(() -> processCommand(command));
+            } catch (RejectedExecutionException ex) {
+                throw new QueueFullException("Queue is full, cannot accept more commands");
             }
-            executor.execute(() -> processCommand(command));
         }
     }
 
     private void processCommand(Command command) {
         // Логика выполнения команды
         System.out.println("Executing: " + command.description());
+        try {
+            Thread.sleep(500); // намеренная задержка, чтобы продемонстрировать переполнение очереди
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
 
         // Обновляем метрики
         metricsPublisher.incrementAuthorCount(command.author());

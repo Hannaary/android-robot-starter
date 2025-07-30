@@ -15,7 +15,7 @@ public class DemoController {
     }
 
     @GetMapping("/audit-test")
-    public String testAudit(@RequestParam String input) {
+    public String testAudit(@RequestParam("input") String input) {
         return demoService.demoEntryPoint(input);
     }
 }
